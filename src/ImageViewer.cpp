@@ -40,12 +40,8 @@ void ImageViewer::setImage(const QImage& image)
 
     ui->labelView->setPixmap(QPixmap::fromImage(image));
 
-    // If the image is larger than the viewport scale it to fit the viewport.
-    // If the image is smaller than the viewport show it in its original size.
-    if(!isQSizeCovered(m_image_size))
-        ui->buttonFitToWindow->setChecked(true);
-    else
-        scaleImage(100);
+    // Always by default scale the image to fit the viewport.
+    ui->buttonFitToWindow->setChecked(true);
 }
 
 bool ImageViewer::isQSizeCovered(QSize rect)
