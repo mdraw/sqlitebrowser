@@ -6,6 +6,11 @@ on:
       NIGHTLY:
         default: false
         type: boolean
+  workflow_dispatch:
+    inputs:
+      NIGHTLY:
+        default: false
+        type: boolean
 
 jobs:
   build:
