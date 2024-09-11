@@ -8,6 +8,23 @@
 #include <QResizeEvent>
 #include <QScrollBar>
 #include <QWheelEvent>
+#include <QtMath>
+
+
+QImage gamma_correction(const QImage& image, double gamma)
+{
+    QImage m_image = image.copy();
+    for (int y = 0; y < m_image.height(); ++y) {
+        for (int x = 0; x < m_image.width(); ++x) {
+            QRgb pixel = m_image.pixel(x, y);
+            int red = qBound(0, static_cast<int>(qPow(qRed(pixel) / 255.0, gamma) * 255), 255);
+            int green = qBound(0, static_cast<int>(qPow(qGreen(pixel) / 255.0, gamma) * 255), 255);
+            int blue = qBound(0, static_cast<int>(qPow(qBlue(pixel) / 255.0, gamma) * 255), 255);
+            m_image.setPixel(x, y, qRgb(red, green, blue));
+        }
+    }
+    return m_image;
+}
 
 ImageViewer::ImageViewer(QWidget* parent) :
     QWidget(parent),
@@ -35,10 +52,15 @@ void ImageViewer::resetImage()
 void ImageViewer::setImage(const QImage& image)
 {
     auto widget_size = ui->scrollArea->viewport()->size();
-    m_image_size = image.size();
+
+    auto gamma = 0.5;
+    // auto gamma = 1.0;
+    QImage m_image = gamma_correction(image, gamma);
+
+    m_image_size = m_image.size();
     ui->labelView->setMaximumSize(m_image_size.scaled(widget_size, Qt::KeepAspectRatio));
 
-    ui->labelView->setPixmap(QPixmap::fromImage(image));
+    ui->labelView->setPixmap(QPixmap::fromImage(m_image));
 
     // Always by default scale the image to fit the viewport.
     ui->buttonFitToWindow->setChecked(true);
@@ -59,7 +81,14 @@ bool ImageViewer::eventFilter(QObject* /*obj*/, QEvent* e) {
         if (wheel_event->angleDelta().y() < 0) {
             step = -step;
         }
-        scaleImage(ui->sliderScale->value() + step);
+        // scaleImage(ui->sliderScale->value() + step);
+
+        // Apply relative gamma correction instead of scaling
+        // TODO: Don't re-use image, instead store original image and apply gamma correction to it
+        qreal gamma = 1.0 + (step / 100.0);
+        QImage m_image = gamma_correction(ui->labelView->pixmap()->toImage(), gamma);
+        ui->labelView->setPixmap(QPixmap::fromImage(m_image));
+
         e->accept();
         return true;
     }
