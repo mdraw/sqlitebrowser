@@ -53,17 +53,20 @@ void ImageViewer::setImage(const QImage& image)
 {
     auto widget_size = ui->scrollArea->viewport()->size();
 
-    auto gamma = 0.5;
-    // auto gamma = 1.0;
-    QImage m_image = gamma_correction(image, gamma);
-
+    m_image = image;
     m_image_size = m_image.size();
     ui->labelView->setMaximumSize(m_image_size.scaled(widget_size, Qt::KeepAspectRatio));
 
-    ui->labelView->setPixmap(QPixmap::fromImage(m_image));
+    showImage(m_image, m_default_gamma);
 
     // Always by default scale the image to fit the viewport.
     ui->buttonFitToWindow->setChecked(true);
+}
+
+void ImageViewer::showImage(const QImage& image, const qreal gamma)
+{
+    QImage new_image = gamma_correction(image, gamma);
+    ui->labelView->setPixmap(QPixmap::fromImage(new_image));
 }
 
 bool ImageViewer::isQSizeCovered(QSize rect)
@@ -81,14 +84,7 @@ bool ImageViewer::eventFilter(QObject* /*obj*/, QEvent* e) {
         if (wheel_event->angleDelta().y() < 0) {
             step = -step;
         }
-        // scaleImage(ui->sliderScale->value() + step);
-
-        // Apply relative gamma correction instead of scaling
-        // TODO: Don't re-use image, instead store original image and apply gamma correction to it
-        qreal gamma = 1.0 + (step / 100.0);
-        QImage m_image = gamma_correction(ui->labelView->pixmap()->toImage(), gamma);
-        ui->labelView->setPixmap(QPixmap::fromImage(m_image));
-
+        scaleImage(ui->sliderScale->value() + step);
         e->accept();
         return true;
     }
@@ -191,10 +187,18 @@ void ImageViewer::scaleImage(int scale)
     // Update our scale factor
     auto scale_factor = scale / 100.0;
 
-    // Resize the image
     auto max_size_old = ui->labelView->maximumSize();
-    ui->labelView->setMaximumSize(m_image_size * scale_factor);
-    ui->labelView->resize(ui->labelView->maximumSize());
+
+    if (m_gamma_instead_of_scaling) {
+        // Hijack resizing slider for gamma correction
+        qreal gamma = scale_factor / 4.0;
+        showImage(m_image, gamma);
+    } else {
+        // Resize the image (previous default)
+        ui->labelView->setMaximumSize(m_image_size * scale_factor);
+        ui->labelView->resize(ui->labelView->maximumSize());
+    }
+
     auto factor_change = ui->labelView->maximumWidth() / static_cast<double>(max_size_old.width());
 
     // Fix scroll bars to zoom into center of viewport instead of the upper left corner
