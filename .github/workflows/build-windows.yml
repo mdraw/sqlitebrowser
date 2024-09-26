@@ -166,55 +166,9 @@ jobs:
           }
 
       - if: github.event_name != 'pull_request'
-        name: Upload artifacts for code signing with SignPath
+        name: Upload unsigened artifacts
         id: unsigned-artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ matrix.os}}-${{ matrix.arch }}-unsigned
           path: installer\windows\DB.Browser.for.SQLite-*.msi
-
-      # Change the signing-policy-slug when you release an RC, RTM or stable release.
-      - if: github.event_name != 'pull_request'
-        name: Code signing with SignPath
-        uses: signpath/github-action-submit-signing-request@v0.4
-        with:
-          api-token: '${{ secrets.SIGNPATH_API_TOKEN }}'
-          github-artifact-id: '${{ steps.unsigned-artifacts.outputs.artifact-id }}'
-          organization-id: '${{ secrets.SIGNPATH_ORGANIZATION_ID }}'
-          output-artifact-directory: .\installer\windows
-          project-slug: 'sqlitebrowser'
-          signing-policy-slug: 'test-signing'
-          wait-for-completion: true
-
-      - if: github.event_name != 'pull_request'
-        name: Create ZIP
-        run: |
-          $ARCH="${{ matrix.arch }}".ToLower()
-          $DATE=$(Get-Date -Format "yyyy-MM-dd")
-          if ("${{ inputs.NIGHTLY }}" -eq "true") {
-            $FILENAME_FORMAT="DB.Browser.for.SQLite-$DATE-$ARCH.zip"
-          } else {
-            $FILENAME_FORMAT="DB.Browser.for.SQLite-dev-$(git rev-parse --short HEAD)-$ARCH.zip"
-          }
-          Start-Process msiexec.exe -ArgumentList "/a $(dir installer\windows\DB.Browser.for.SQLite-*.msi) /q TARGETDIR=$PWD\target\" -Wait
-          if ("${{ matrix.arch }}" -eq "Win32") {
-            move target\System\* "target\DB Browser for SQLite\"
-          } else {
-            move target\System64\* "target\DB Browser for SQLite\"
-          }
-          Compress-Archive -Path "target\DB Browser for SQLite\*" -DestinationPath $FILENAME_FORMAT
-
-      - if: github.event_name != 'pull_request'
-        name: Prepare artifacts
-        run: |
-          mkdir build-artifacts
-          move installer\windows\DB.Browser.for.SQLite-*.msi build-artifacts\
-          move DB.Browser.for.SQLite-*.zip build-artifacts\
-          Compress-Archive -Path build-artifacts\* -DestinationPath build-artifacts-${{ matrix.arch }}.zip
-
-      - if: github.event_name != 'pull_request'
-        name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts-${{ matrix.os }}-${{ matrix.arch }}
-          path: build-artifacts-${{ matrix.arch }}.zip
